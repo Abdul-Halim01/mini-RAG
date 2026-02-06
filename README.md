@@ -110,3 +110,12 @@ uv sync --dev
 ```
 
 ---
+
+### Setup the enviroment variable
+
+```bash
+$ cp .env.example .env
+```
+
+Set your enviroment variable in the '.env' and add your secret
+
