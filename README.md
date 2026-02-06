@@ -110,10 +110,3 @@ uv sync --dev
 ```
 
 ---
-
-## 📌 Notes
-
-* No `requirements.txt` needed
-* Dependencies managed via `pyproject.toml`
-* `uv.lock` ensures reproducible installs
-* Much faster than traditional pip workflows
