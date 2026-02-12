@@ -1,0 +1,18 @@
+1- make src for be a source of code
+2- Divide into modules [assets, controllers,helpers , models ,routes]
+    assets: To put file inside
+    controllers: To handle the business logic
+    helpers: for settings 
+    models: for database models, enums:[this For response signals]
+    routes: for api routes
+
+# Signals is important for Fixed Constants
+
+3- for upload file in your system you should check
+  3.1 if file exist or not
+  3.2 file size, type
+  3.3 save it as Unique Name
+  3.4 get_clean_file_name this important function to protect you from :
+        3.4.1 special characters
+        3.4.2 spaces
+
