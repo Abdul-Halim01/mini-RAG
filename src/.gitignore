@@ -12,3 +12,4 @@ wheels/
 # Secret Key
 .env 
 
+Notes.txt
