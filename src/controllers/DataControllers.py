@@ -39,11 +39,12 @@ class DataController(BaseController):
 
         return new_file_path, random_key + "_" + cleaned_file_name
 
-    def get_clean_file_name(self,orig_file_name:str):
+    def get_clean_file_name(self, orig_file_name: str):
 
-        # remove any special character
-        clean_file_name = re.sub(r'[^a-zA-Z0-9]', '', orig_file_name)
+        # remove any special characters, except underscore and .
+        cleaned_file_name = re.sub(r'[^\w.]', '', orig_file_name.strip())
+
         # replace spaces with underscore
-        clean_file_name = clean_file_name.replace(" ", "_")
-        print("clean_file_name: ",clean_file_name)
-        return clean_file_name
+        cleaned_file_name = cleaned_file_name.replace(" ", "_")
+
+        return cleaned_file_name
