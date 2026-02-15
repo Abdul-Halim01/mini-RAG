@@ -34,12 +34,14 @@ class ChunkModel(BaseDataModel):
 
     async def create_chunk(self,chunk:DataChunk):
         result = await self.collection.insert_one(chunk.dict(by_alias=True,exclude_none=True))
-        chunk._id = result.inserted_id
+        chunk.id = result.inserted_id
         return chunk
 
     async def get_chunk(self, chunk_id: str):
         record = await self.collection.find_one({
-            "_id": ObjectId(chunk_id)
+            "id": ObjectId(chunk_id)
+            #"_id": ObjectId(chunk_id)
+
         })
         if record is None:
             return None
