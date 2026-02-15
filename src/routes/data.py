@@ -1,4 +1,4 @@
-from fastapi import FastAPI,APIRouter, Depends,UploadFile,status
+from fastapi import FastAPI,APIRouter, Depends,UploadFile,status, Request
 from fastapi.responses import JSONResponse
 import os
 from helpers.config import get_settings,Settings
@@ -7,7 +7,9 @@ import aiofiles
 from models import ResponseSignal
 import logging
 from .schemes.data import ProcessingRequest
-
+from models.ProjectModel import ProjectModel
+from models.ChunkModel import ChunkModel
+from models.db_schemas import DataChunk
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -16,22 +18,39 @@ data_router = APIRouter(
     tags=["data"]
 )
 
+# For upload data and make it chunks
 @data_router.get("/upload/{project_id}")
-async def upload_data(project_id:str ,file:UploadFile ,
+async def upload_data(request:Request,project_id:str ,file:UploadFile ,
                       app_settings: Settings = Depends(get_settings)):
+
+    print("11")
     # Validata the file properties
     data_controller = DataController()
+    project_model = await ProjectModel.create_instance(
+        db_client=request.app.db_client,
+    )
+
+    # get project details
+    project = await project_model.get_project_or_create_one(
+        project_id=project_id,
+    )
+
+    # Validata the file properties
     is_valid,result_Signals = data_controller.validate_uploaded_file(file=file)
 
     if not is_valid:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content={"Signals":result_Signals})
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT,content={"Signals":result_Signals})
     
+    # get project path
     project_dir_path = ProjectController().get_project_path(project_id=project_id)
+    
+    # generate unique file path
     file_path, file_id  = data_controller.generate_unique_filepath(
         orig_file_name=file.filename,
         project_id=project_id
     )
 
+    # save file
     try:
         async with aiofiles.open(file_path, "wb") as f:
             while chunk := await file.read(app_settings.FILE_DEFAULT_CHUNK_SIZE):
@@ -50,16 +69,19 @@ async def upload_data(project_id:str ,file:UploadFile ,
         )
 
 
-
-
+# For process the file content and get content
 @data_router.get("/process/{project_id}")
-async def process_endpoint(project_id:str, proecess_request:ProcessingRequest):
+async def process_endpoint(request:Request,project_id:str, proecess_request:ProcessingRequest):
     file_id = proecess_request.file_id
     chunk_size = proecess_request.chunk_size
     overlap_size = proecess_request.overlap_size
     process_controller = ProcessController(project_id=project_id)
     file_content = process_controller.get_file_content(file_id=file_id)
-    
+    do_reset = proecess_request.do_reset
+
+
+
+
     file_chunks = process_controller.process_file_content(
         file_content=file_content,
         file_id=file_id,
@@ -69,4 +91,36 @@ async def process_endpoint(project_id:str, proecess_request:ProcessingRequest):
     if file_chunks is None or len(file_chunks) == 0:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content={"Signals":ResponseSignal.PROCESSING_FAILED.value})
 
-    return file_chunks
+    project_model = await ProjectModel.create_instance(
+        db_client=request.app.db_client
+        )
+
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+    
+    file_chunks_records = [
+        DataChunk(
+            project_id=project_id,
+            chunk_text=chunk.page_content,
+            chunk_metadata=chunk.metadata,
+            chunk_order=chunk_index+1,
+            chunk_project_id=project.id
+        )
+        for chunk_index, chunk in enumerate(file_chunks)
+    ]
+     
+
+    chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
+
+    # delete old chunks if do_reset is True
+    if do_reset:
+        await chunk_model.delete_chunks_by_project_id(project_id=project.id)
+    # insert chunks into DB
+    no_records = await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "Signals":ResponseSignal.PROCESSING_SUCCESSFULLY.value,
+            "file_chunks":no_records,
+            }
+        )
