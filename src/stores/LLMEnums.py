@@ -19,9 +19,13 @@ class CohereEnums(Enum):
     QUERY= "search_query"
 
 class GeminiEnums(Enum):
-    SYSTEM = "SYSTEM"
-    USER = "USER"
-    ASSISTANT = "ASSISTANT"
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "model"   # Gemini uses "model" for assistant
+
+    DOCUMENT = "retrieval_document"
+    QUERY = "retrieval_query"
+
 
 class DocumentTypeEnum(Enum):
     DOCUMENT = "document"
