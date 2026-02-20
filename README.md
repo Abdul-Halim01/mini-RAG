@@ -123,10 +123,12 @@ Set your enviroment variable in the '.env' and add your secret
 
 ```bash
 $ cd docker
-$ cd .env.example  .env 
+$ docker compose up -d
 ```
- - update '.env' with your Credentials
- - run docker compose
- ```bash
- $ docker-compose up -d
- ```
+### Add Secret Credintials
+```
+cd ..
+$ cp .env.example .env
+```
+
+Update '.env' with your Credentials
