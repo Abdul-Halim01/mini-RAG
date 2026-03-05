@@ -1,7 +1,7 @@
 from ..LLMInterface import LLMInterface
 import logging
 from ..LLMEnums import CohereEnums,DocumentTypeEnum
-
+from typing import Union,List
 import cohere
 
 class CoHereProvider(LLMInterface):
@@ -73,7 +73,7 @@ class CoHereProvider(LLMInterface):
 
         return response.text
     
-    def embed_text(self,document_type:str,document_content:str=None):
+    def embed_text(self,document_type:str,document_content:Union[str,List[str]]):
         if not self.client:
             self.logger.error("Cohere client is not initialized")
             raise Exception("Cohere client is not initialized")
@@ -82,7 +82,8 @@ class CoHereProvider(LLMInterface):
             self.logger.error("Embedding model is not set")
             raise Exception("Embedding model is not set")
 
-        
+        if isinstance(document_content,str):
+            document_content = [document_content]
         input_type = self.enums.DOCUMENT.value 
         if document_type==DocumentTypeEnum.QUERY.value:
             input_type = self.enums.QUERY.value
@@ -91,7 +92,7 @@ class CoHereProvider(LLMInterface):
 
         response = self.client.embed(
             model=self.embedding_model_id,
-            texts=[self.process_text(document_content)],
+            texts=[self.process_text(t) for t in document_content],
             input_type=input_type,
             embedding_types=['float']
         )
@@ -99,13 +100,13 @@ class CoHereProvider(LLMInterface):
         if not response or not response.embeddings or not response.embeddings.float:
             self.logger.error("No response from Cohere")
             return None
-        return response.embeddings.float[0]
+        return response.embeddings.float
         
 
     def construct_prompt(self,prompt:str,role:str):
         return {
             "role":role,
-            "content":self.process_text(prompt)
+            "content":prompt
         }
    
     def process_text(self,text:str):

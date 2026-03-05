@@ -6,8 +6,8 @@ from ..LLMEnums import GeminiEnums, DocumentTypeEnum
 
 class GeminiProvider(LLMInterface):
     def __init__(self,api_key:str,
-                default_input_max_characters:int=1000,
-                default_generation_max_characters:int=1000,
+                default_input_max_characters:int=10000,
+                default_generation_max_characters:int=4096,
                 default_temperature:float=0.1,
                 ):
 
@@ -85,7 +85,7 @@ class GeminiProvider(LLMInterface):
         # Add current user prompt
         formatted_contents.append({
             "role": self.enums.USER.value,
-            "parts": [{"text": self.process_text(prompt)}]
+            "parts": [{"text": prompt}]
         })
 
         response = self.client.models.generate_content(
@@ -136,10 +136,8 @@ class GeminiProvider(LLMInterface):
         # Gemini expects 'parts' instead of 'content'
         return {
             "role":role,
-            "parts":[{"text": self.process_text(prompt)}]
+            "parts":[{"text": prompt}]
         }
    
     def process_text(self,text:str):
         return text.strip()[:self.default_input_max_characters]
-
-
