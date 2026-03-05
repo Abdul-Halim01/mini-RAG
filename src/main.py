@@ -1,20 +1,26 @@
 from fastapi import FastAPI 
 from routes import base,data,nlp
-from motor.motor_asyncio import AsyncIOMotorClient
 from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
+from sqlalchemy.ext.asyncio import create_async_engine,AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
 async def startup_span():
     settings = get_settings()
-    app.mongodb_conn = AsyncIOMotorClient(settings.MONGODB_URL)
-    app.db_client = app.mongodb_conn[settings.MONGODB_DATABASE]
+
+    postgrss_conn = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+    app.db_engine = create_async_engine(postgrss_conn)
+    app.db_client = sessionmaker(
+        app.db_engine, class_=AsyncSession,
+        expire_on_commit=False
+    )
 
     llm_provider_factory = LLMProviderFactory(settings)
-    vectordb_provider_factory = VectorDBProviderFactory(settings)
+    vectordb_provider_factory = VectorDBProviderFactory(settings,db_client=app.db_client)
 
     # Generation Client
     app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
@@ -27,13 +33,13 @@ async def startup_span():
     app.vectordb_client= vectordb_provider_factory.create(
         provider=settings.VECTOR_DB_BACKEND
     )
-    app.vectordb_client.connect()
+    await app.vectordb_client.connect()
 
     app.template_parser = TemplateParser(language=settings.PRIMARY_LANG, default_language=settings.DEFAULT_LANG)
 
 async def shutdown_span():
-    app.mongodb_conn.close()
-    app.vectordb_client.disconnect()
+    app.db_engine.dispose()
+    await app.vectordb_client.disconnect()
 
 
 # app.router.lifespan.on_startup.append(startup_span)
